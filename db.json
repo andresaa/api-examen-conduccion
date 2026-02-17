@@ -51,7 +51,7 @@
           "appointment_id": "APT-2024-002",
           "photo": null,
           "scheduled_time": "10:00",
-          "test_type": "DESTREZA_INDIVIDUAL",
+          "test_type": "TEORICO",
           "status": "confirmed"
         },
         {
@@ -64,7 +64,7 @@
           "appointment_id": "APT-2024-003",
           "photo": "https://i.pravatar.cc/150?img=3",
           "scheduled_time": "11:00",
-          "test_type": "VIA_PUBLICA",
+          "test_type": "TEORICO",
           "status": "confirmed"
         },
         {
@@ -90,7 +90,7 @@
           "appointment_id": "APT-2024-005",
           "photo": "https://i.pravatar.cc/150?img=8",
           "scheduled_time": "15:00",
-          "test_type": "DESTREZA_INDIVIDUAL",
+          "test_type": "TEORICO",
           "status": "confirmed"
         }
       ]
@@ -123,7 +123,7 @@
           "appointment_id": "APT-2024-007",
           "photo": "https://i.pravatar.cc/150?img=15",
           "scheduled_time": "10:30",
-          "test_type": "VIA_PUBLICA",
+          "test_type": "TEORICO",
           "status": "confirmed"
         }
       ]
