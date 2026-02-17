@@ -1,0 +1,194 @@
+{
+  "appointment": [
+    {
+      "id": "1",
+      "first_name": "Juan",
+      "last_name": "Pérez García",
+      "document_type": "CC",
+      "document_number": "1234567890",
+      "email": "juan.perez@example.com",
+      "appointment_id": "APT-2024-001",
+      "user_id": "USR-001",
+      "photo": "https://i.pravatar.cc/150?img=1"
+    },
+    {
+      "id": "2",
+      "first_name": "María",
+      "last_name": "López Rodríguez",
+      "document_type": "CE",
+      "document_number": "9876543210",
+      "email": "maria.lopez@example.com",
+      "appointment_id": "APT-2024-002",
+      "user_id": "USR-002",
+      "photo": null
+    },
+    {
+      "id": "3",
+      "first_name": "Carlos",
+      "last_name": "González Martínez",
+      "document_type": "CC",
+      "document_number": "5555666677",
+      "email": "carlos.gonzalez@example.com",
+      "appointment_id": "APT-2024-003",
+      "user_id": "USR-003",
+      "photo": "https://i.pravatar.cc/150?img=3"
+    },
+    {
+      "id": "4",
+      "first_name": "Ana",
+      "last_name": "Ramírez Torres",
+      "document_type": "TI",
+      "document_number": "1122334455",
+      "email": "ana.ramirez@example.com",
+      "appointment_id": "APT-2024-004",
+      "user_id": "USR-004",
+      "photo": "https://i.pravatar.cc/150?img=10"
+    },
+    {
+      "id": "5",
+      "first_name": "Pedro",
+      "last_name": "Sánchez Villa",
+      "document_type": "PA",
+      "document_number": "AB1234567",
+      "email": "pedro.sanchez@example.com",
+      "appointment_id": "APT-2024-005",
+      "user_id": "USR-005",
+      "photo": "https://i.pravatar.cc/150?img=8"
+    }
+  ],
+  "test_result": [
+    {
+      "id": "1",
+      "test_result_id": "TST-2024-001",
+      "user_id": "USR-001",
+      "resource_mac": "A1B2C3D4E5F6",
+      "appointment_id": "APT-2024-001",
+      "test_type": "TEORICO",
+      "result": {
+        "total_questions": 40,
+        "correct_answers": 36,
+        "incorrect_answers": 4,
+        "score_percentage": 90,
+        "passing_score": 80,
+        "passed": true,
+        "duration_minutes": 45
+      },
+      "status": "completed",
+      "notes": "Aprobado con excelente puntaje",
+      "performed_at": "2024-02-17T09:30:00Z",
+      "created_at": "2024-02-17T09:35:00Z",
+      "updated_at": "2024-02-17T09:35:00Z"
+    },
+    {
+      "id": "2",
+      "test_result_id": "TST-2024-002",
+      "user_id": "USR-001",
+      "resource_mac": "A1B2C3D4E5F6",
+      "appointment_id": "APT-2024-001",
+      "test_type": "DESTREZA_INDIVIDUAL",
+      "result": {
+        "exercises_completed": 8,
+        "exercises_passed": 7,
+        "exercises_failed": 1,
+        "passed": true,
+        "duration_minutes": 35,
+        "details": {
+          "estacionamiento_paralelo": "PASSED",
+          "estacionamiento_perpendicular": "PASSED",
+          "cambio_carril": "PASSED",
+          "frenado_emergencia": "PASSED",
+          "curvas_cerradas": "PASSED",
+          "arranque_pendiente": "FAILED",
+          "reversa": "PASSED",
+          "velocidad_controlada": "PASSED"
+        }
+      },
+      "status": "completed",
+      "notes": "Requiere práctica en arranque en pendiente",
+      "performed_at": "2024-02-17T11:00:00Z",
+      "created_at": "2024-02-17T11:05:00Z",
+      "updated_at": "2024-02-17T11:05:00Z"
+    },
+    {
+      "id": "3",
+      "test_result_id": "TST-2024-003",
+      "user_id": "USR-003",
+      "resource_mac": "B1C2D3E4F5A6",
+      "appointment_id": "APT-2024-003",
+      "test_type": "VIA_PUBLICA",
+      "result": {
+        "passed": true,
+        "duration_minutes": 50,
+        "route_completed": true,
+        "distance_km": 12.5,
+        "evaluation_criteria": {
+          "control_vehiculo": "EXCELENTE",
+          "observacion_senales": "BUENO",
+          "uso_espejos": "EXCELENTE",
+          "cambios_carril": "BUENO",
+          "velocidad_apropiada": "EXCELENTE",
+          "distancia_seguridad": "BUENO",
+          "giros_intersecciones": "EXCELENTE",
+          "estacionamiento": "BUENO"
+        },
+        "faults": {
+          "critical": 0,
+          "major": 0,
+          "minor": 2
+        }
+      },
+      "status": "completed",
+      "notes": "Conducción segura y responsable. Apto para licencia.",
+      "performed_at": "2024-02-17T14:00:00Z",
+      "created_at": "2024-02-17T14:55:00Z",
+      "updated_at": "2024-02-17T14:55:00Z"
+    },
+    {
+      "id": "4",
+      "test_result_id": "TST-2024-004",
+      "user_id": "USR-004",
+      "resource_mac": "C1D2E3F4A5B6",
+      "appointment_id": "APT-2024-004",
+      "test_type": "TEORICO",
+      "result": {
+        "total_questions": 40,
+        "correct_answers": 28,
+        "incorrect_answers": 12,
+        "score_percentage": 70,
+        "passing_score": 80,
+        "passed": false,
+        "duration_minutes": 50
+      },
+      "status": "completed",
+      "notes": "Debe estudiar más sobre señales de tránsito",
+      "performed_at": "2024-02-17T11:00:00Z",
+      "created_at": "2024-02-17T11:05:00Z",
+      "updated_at": "2024-02-17T11:05:00Z"
+    },
+    {
+      "id": "5",
+      "test_result_id": "TST-2024-005",
+      "user_id": "USR-005",
+      "resource_mac": "D1E2F3A4B5C6",
+      "appointment_id": "APT-2024-005",
+      "test_type": "VIA_PUBLICA",
+      "result": {
+        "passed": false,
+        "duration_minutes": 25,
+        "route_completed": false,
+        "distance_km": 5.2,
+        "faults": {
+          "critical": 2,
+          "major": 3,
+          "minor": 5
+        },
+        "reason_failed": "No respetó semáforo en rojo"
+      },
+      "status": "completed",
+      "notes": "Requiere más práctica antes de volver a presentar",
+      "performed_at": "2024-02-17T15:30:00Z",
+      "created_at": "2024-02-17T15:35:00Z",
+      "updated_at": "2024-02-17T15:35:00Z"
+    }
+  ]
+}

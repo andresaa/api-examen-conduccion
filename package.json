@@ -1,0 +1,16 @@
+{
+  "name": "api-examen-conduccion",
+  "version": "1.0.0",
+  "description": "API Mock para sistema de exámenes de conducción",
+  "main": "server.js",
+  "scripts": {
+    "start": "json-server db.json --port ${PORT:-3000} --host 0.0.0.0",
+    "dev": "json-server db.json --port 3000 --watch"
+  },
+  "keywords": ["api", "mock", "json-server"],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "json-server": "^0.17.4"
+  }
+}
