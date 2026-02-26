@@ -3,282 +3,176 @@ const server = jsonServer.create();
 const router = jsonServer.router('db.json');
 const middlewares = jsonServer.defaults();
 
-// Configurar CORS y middlewares
 server.use(middlewares);
 server.use(jsonServer.bodyParser);
 
 // ============================================================================
-// ENDPOINT 1: GET /consultant-service/v1/appointment/{resource_mac}
+// HELPERS PARA RESPUESTA ESTÁNDAR
 // ============================================================================
-server.get('/consultant-service/v1/appointment/:resource_mac', (req, res) => {
-  const { resource_mac } = req.params;
-  const db = router.db; // Acceder a la base de datos
-
-  // Buscar la cita por resource_mac
-  const appointment = db.get('appointments')
-    .find({ resource_mac: resource_mac })
-    .value();
-
-  if (!appointment) {
-    return res.status(404).json({
-      error_code: 'APPOINTMENT_NOT_FOUND',
-      message: `No se encontró ninguna cita para el resource_mac: ${resource_mac}`,
-      details: {
-        resource_mac: resource_mac,
-        suggestion: 'Verifique que el resource_mac sea correcto'
-      },
-      timestamp: new Date().toISOString()
-    });
-  }
-
-  // Validar formato de resource_mac (opcional pero recomendado)
-  const macRegex = /^[A-Fa-f0-9]{12}$/;
-  if (!macRegex.test(resource_mac)) {
-    return res.status(400).json({
-      error_code: 'INVALID_FORMAT',
-      message: 'El formato de resource_mac es inválido. Se esperan 12 caracteres hexadecimales.',
-      details: {
-        field: 'resource_mac',
-        provided_value: resource_mac,
-        expected_format: '^[A-Fa-f0-9]{12}$',
-        examples: ['A1B2C3D4E5F6', '001122334455']
-      },
-      timestamp: new Date().toISOString()
-    });
-  }
-
-  // Retornar los usuarios asignados a este dispositivo para el día
-  res.status(200).json({
-    resource_mac: appointment.resource_mac,
-    appointment_date: appointment.appointment_date,
-    total_users: appointment.users.length,
-    users: appointment.users
+const sendSuccess = (res, data = {}, message = 'Operation successful') => {
+  res.json({
+    success: true,
+    message: message,
+    data: data
   });
+};
+
+const sendError = (res, message = 'An error occurred', statusCode = 400, data = {}) => {
+  res.status(statusCode).json({
+    success: false,
+    message: message,
+    data: data
+  });
+};
+
+// ============================================================================
+// MIDDLEWARE DE AUTENTICACIÓN
+// ============================================================================
+server.use((req, res, next) => {
+  const publicPaths = [
+    '/consultant-service/v1/health',
+    '/consultant-service/v1/auth/login'
+  ];
+
+  if (publicPaths.includes(req.path)) {
+    return next();
+  }
+
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return sendError(res, 'Missing or invalid Authorization header', 401);
+  }
+
+  // Token dummy validation (simplemente que exista algo después de Bearer)
+  const token = authHeader.split(' ')[1];
+  if (!token) {
+    return sendError(res, 'Invalid token format', 401);
+  }
+
+  next();
 });
 
 // ============================================================================
-// ENDPOINT 2: POST /consultant-service/v1/appointment/test-result
+// ENDPOINT: HEALTH CHECK
 // ============================================================================
-server.post('/consultant-service/v1/appointment/test-result', (req, res) => {
-  const { user_id, test_type, result, appointment_id, notes, performed_at } = req.body;
+server.get('/consultant-service/v1/health', (req, res) => {
+  sendSuccess(res, { status: 'UP', timestamp: new Date().toISOString() }, 'Service is healthy');
+});
+
+// ============================================================================
+// ENDPOINT: AUTH LOGIN
+// ============================================================================
+server.post('/consultant-service/v1/auth/login', (req, res) => {
+  // Mock login - acepta cualquier credencial por ahora
+  const token = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.mockToken123456';
+  const expiresIn = 86400; // 24 horas
+
+  sendSuccess(res, { accessToken: token, expiresIn }, 'Authentication successful');
+});
+
+// ============================================================================
+// ENDPOINT: LIST CALES
+// ============================================================================
+server.get('/consultant-service/v1/cales', (req, res) => {
+  const db = router.db;
+  const cales = db.get('cales').value();
+  sendSuccess(res, cales, 'CALE list retrieved successfully');
+});
+
+// ============================================================================
+// ENDPOINT: GET APPOINTMENTS BY CALE ID
+// ============================================================================
+server.get('/consultant-service/v1/appointment/:caleId', (req, res) => {
+  const { caleId } = req.params;
   const db = router.db;
 
-  // ====================================
-  // VALIDACIONES OBLIGATORIAS
-  // ====================================
-
-  // 1. Validar campos requeridos
-  const requiredFields = ['user_id', 'test_type', 'result', 'appointment_id'];
-  const missingFields = requiredFields.filter(field => !req.body[field]);
-
-  if (missingFields.length > 0) {
-    return res.status(400).json({
-      error_code: 'VALIDATION_ERROR',
-      message: 'Faltan campos requeridos',
-      details: {
-        missing_fields: missingFields,
-        required_fields: requiredFields
-      },
-      timestamp: new Date().toISOString()
-    });
+  // Verificar si el CALE existe (opcional, pero buena práctica)
+  const caleExists = db.get('cales').find({ caleId }).value();
+  if (!caleExists) {
+    return sendError(res, `CALE with ID ${caleId} not found`, 404);
   }
 
-  // 2. Validar test_type
-  const validTestTypes = ['TEORICO', 'DESTREZA_INDIVIDUAL', 'VIA_PUBLICA'];
-  if (!validTestTypes.includes(test_type)) {
-    return res.status(400).json({
-      error_code: 'INVALID_TEST_TYPE',
-      message: 'El tipo de examen proporcionado no es válido',
-      details: {
-        provided_test_type: test_type,
-        allowed_types: validTestTypes
-      },
-      timestamp: new Date().toISOString()
-    });
-  }
-
-  // 3. Validar que result sea un objeto
-  if (typeof result !== 'object' || result === null) {
-    return res.status(400).json({
-      error_code: 'INVALID_RESULT_FORMAT',
-      message: 'El campo result debe ser un objeto',
-      details: {
-        provided_type: typeof result
-      },
-      timestamp: new Date().toISOString()
-    });
-  }
-
-  // 4. Buscar si el appointment_id existe
-  const appointmentExists = db.get('appointments')
-    .flatMap('users')
-    .find({ appointment_id: appointment_id })
+  // Obtener citas filtradas por caleId
+  // Nota: En un sistema real esto filtraría por fecha actual también.
+  // Aquí devolvemos todas las del mock para facilitar pruebas.
+  const appointments = db.get('appointments')
+    .filter({ caleId: caleId })
     .value();
 
-  if (!appointmentExists) {
-    return res.status(404).json({
-      error_code: 'APPOINTMENT_NOT_FOUND',
-      message: 'La cita con el appointment_id proporcionado no existe',
-      details: {
-        appointment_id: appointment_id
-      },
-      timestamp: new Date().toISOString()
-    });
+  sendSuccess(res, appointments, `Appointments for CALE ${caleId} retrieved successfully`);
+});
+
+// ============================================================================
+// ENDPOINT: RESOURCE SYNC STATUS
+// ============================================================================
+server.get('/consultant-service/v1/resource-sync/status', (req, res) => {
+  const db = router.db;
+  const status = db.get('sync_status').value();
+  sendSuccess(res, status || {}, 'Sync status retrieved');
+});
+
+// ============================================================================
+// ENDPOINT: SUBMIT TEST RESULT (WEBHOOK)
+// ============================================================================
+server.post('/consultant-service/v1/appointment/test-result', (req, res) => {
+  const { appointmentId, testType, result, userId, notes } = req.body;
+  const db = router.db;
+
+  // Validaciones básicas
+  if (!appointmentId || !testType || !result || !userId) {
+    return sendError(res, 'Missing required fields: appointmentId, testType, result, userId', 400);
   }
 
-  // 5. Buscar si el user_id existe
-  const userExists = db.get('appointments')
-    .flatMap('users')
-    .find({ user_id: user_id })
-    .value();
-
-  if (!userExists) {
-    return res.status(404).json({
-      error_code: 'USER_NOT_FOUND',
-      message: 'El usuario con el user_id proporcionado no existe',
-      details: {
-        user_id: user_id
-      },
-      timestamp: new Date().toISOString()
-    });
+  // Verificar que la cita existe
+  const appointment = db.get('appointments').find({ appointmentId }).value();
+  if (!appointment) {
+    return sendError(res, `Appointment ${appointmentId} not found`, 404);
   }
 
-  // 6. Verificar que el user_id corresponda al appointment_id
-  if (userExists.appointment_id !== appointment_id) {
-    return res.status(404).json({
-      error_code: 'APPOINTMENT_USER_MISMATCH',
-      message: 'La cita especificada no pertenece al usuario indicado',
-      details: {
-        user_id: user_id,
-        appointment_id: appointment_id,
-        appointment_owner: userExists.user_id
-      },
-      timestamp: new Date().toISOString()
-    });
+  // Verificar que corresponda al usuario
+  if (appointment.userId !== userId) {
+    return sendError(res, 'User ID does not match appointment record', 400);
   }
 
-  // 7. Verificar si ya existe un resultado para este appointment_id y test_type
+  // Verificar duplicados (opcional)
   const existingResult = db.get('test_results')
-    .find({ appointment_id: appointment_id, test_type: test_type })
+    .find({ appointmentId, testType })
     .value();
 
   if (existingResult) {
-    return res.status(409).json({
-      error_code: 'DUPLICATE_TEST_RESULT',
-      message: 'Ya existe un resultado de examen para esta cita y tipo de examen',
-      details: {
-        appointment_id: appointment_id,
-        test_type: test_type,
-        existing_test_id: existingResult.test_result_id,
-        created_at: existingResult.created_at
-      },
-      timestamp: new Date().toISOString()
-    });
+    return sendError(res, 'Test result already exists for this appointment and test type', 409);
   }
 
-  // ====================================
-  // CREAR RESULTADO
-  // ====================================
-
-  const timestamp = new Date().toISOString();
-  const testResultId = `TST-${new Date().getFullYear()}-${String(db.get('test_results').size().value() + 1).padStart(3, '0')}`;
-  
-  const newTestResult = {
-    id: String(db.get('test_results').size().value() + 1),
-    test_result_id: testResultId,
-    user_id: user_id,
-    appointment_id: appointment_id,
-    test_type: test_type,
-    result: result,
+  // Crear registro
+  const newResult = {
+    testResultId: `TST-${Date.now()}`,
+    appointmentId,
+    userId,
+    testType,
+    result,
+    notes: notes || '',
     status: 'completed',
-    notes: notes || null,
-    performed_at: performed_at || timestamp,
-    created_at: timestamp,
-    updated_at: timestamp
+    createdAt: new Date().toISOString()
   };
 
-  // Guardar en la base de datos
-  db.get('test_results')
-    .push(newTestResult)
-    .write();
+  db.get('test_results').push(newResult).write();
 
-  // Respuesta exitosa
-  res.status(200).json({
-    test_result_id: newTestResult.test_result_id,
-    user_id: newTestResult.user_id,
-    appointment_id: newTestResult.appointment_id,
-    test_type: newTestResult.test_type,
-    result: newTestResult.result,
-    status: newTestResult.status,
-    notes: newTestResult.notes,
-    performed_at: newTestResult.performed_at,
-    created_at: newTestResult.created_at,
-    updated_at: newTestResult.updated_at,
-    message: 'Resultado de examen enviado exitosamente'
-  });
+  sendSuccess(res, newResult, 'Test result submitted successfully');
 });
 
 // ============================================================================
-// RUTAS ADICIONALES (OPCIONALES - Para consultas)
+// MANEJO DE RUTAS NO ENCONTRADAS (404)
 // ============================================================================
-
-// Obtener todos los test_results (útil para consultas)
-server.get('/consultant-service/v1/test-results', (req, res) => {
-  const db = router.db;
-  const { user_id, appointment_id, test_type, status } = req.query;
-  
-  let results = db.get('test_results').value();
-
-  // Aplicar filtros si existen
-  if (user_id) {
-    results = results.filter(r => r.user_id === user_id);
-  }
-  if (appointment_id) {
-    results = results.filter(r => r.appointment_id === appointment_id);
-  }
-  if (test_type) {
-    results = results.filter(r => r.test_type === test_type);
-  }
-  if (status) {
-    results = results.filter(r => r.status === status);
-  }
-
-  res.status(200).json({
-    total: results.length,
-    data: results
-  });
+server.use((req, res) => {
+  sendError(res, `Route ${req.method} ${req.path} not found`, 404);
 });
-
-// Obtener un test_result específico por ID
-server.get('/consultant-service/v1/test-result/:id', (req, res) => {
-  const db = router.db;
-  const result = db.get('test_results')
-    .find({ test_result_id: req.params.id })
-    .value();
-
-  if (!result) {
-    return res.status(404).json({
-      error_code: 'TEST_RESULT_NOT_FOUND',
-      message: 'No se encontró el resultado del examen',
-      timestamp: new Date().toISOString()
-    });
-  }
-
-  res.status(200).json(result);
-});
-
-// ============================================================================
-// USAR ROUTER POR DEFECTO PARA OTRAS RUTAS
-// ============================================================================
-server.use(router);
 
 // ============================================================================
 // INICIAR SERVIDOR
 // ============================================================================
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-  console.log(`🚀 JSON Server corriendo en puerto ${PORT}`);
-  console.log(`📍 Endpoints disponibles:`);
-  console.log(`   GET  /consultant-service/v1/appointment/:resource_mac`);
-  console.log(`   POST /consultant-service/v1/appointment/test-result`);
+  console.log(`🚀 API Mock running on port ${PORT}`);
+  console.log(`   Swagger definition v3.0.0 implemented`);
+  console.log(`   Base URL: http://localhost:${PORT}/consultant-service/v1`);
 });

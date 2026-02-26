@@ -1,216 +1,82 @@
 {
-  "devices": [
+  "cales": [
     {
-      "id": "1",
-      "resource_mac": "A1B2C3D4E5F6",
-      "device_name": "Dispositivo Centro",
-      "location": "Centro de Exámenes Principal",
-      "status": "active"
+      "caleId": "CALE-BOG-001",
+      "caleName": "CALE Bogotá Norte"
     },
     {
-      "id": "2",
-      "resource_mac": "B2C3D4E5F6A7",
-      "device_name": "Dispositivo Norte",
-      "location": "Centro de Exámenes Norte",
-      "status": "active"
+      "caleId": "CALE-BOG-002",
+      "caleName": "CALE Bogotá Sur"
     },
     {
-      "id": "3",
-      "resource_mac": "C3D4E5F6A7B8",
-      "device_name": "Dispositivo Sur",
-      "location": "Centro de Exámenes Sur",
-      "status": "active"
+      "caleId": "CALE-MED-001",
+      "caleName": "CALE Medellín Centro"
     }
   ],
   "appointments": [
     {
-      "id": "1",
-      "resource_mac": "A1B2C3D4E5F6",
-      "appointment_date": "2024-02-17",
-      "users": [
-        {
-          "user_id": "USR-001",
-          "first_name": "Juan",
-          "last_name": "Pérez García",
-          "document_type": "CC",
-          "document_number": "1234567890",
-          "email": "juan.perez@example.com",
-          "appointment_id": "APT-2024-001",
-          "photo": "https://i.pravatar.cc/150?img=1",
-          "scheduled_time": "09:00",
-          "test_type": "TEORICO",
-          "status": "confirmed"
-        },
-        {
-          "user_id": "USR-002",
-          "first_name": "María",
-          "last_name": "López Rodríguez",
-          "document_type": "CE",
-          "document_number": "9876543210",
-          "email": "maria.lopez@example.com",
-          "appointment_id": "APT-2024-002",
-          "photo": null,
-          "scheduled_time": "10:00",
-          "test_type": "TEORICO",
-          "status": "confirmed"
-        },
-        {
-          "user_id": "USR-003",
-          "first_name": "Carlos",
-          "last_name": "González Martínez",
-          "document_type": "CC",
-          "document_number": "5555666677",
-          "email": "carlos.gonzalez@example.com",
-          "appointment_id": "APT-2024-003",
-          "photo": "https://i.pravatar.cc/150?img=3",
-          "scheduled_time": "11:00",
-          "test_type": "TEORICO",
-          "status": "confirmed"
-        },
-        {
-          "user_id": "USR-004",
-          "first_name": "Ana",
-          "last_name": "Ramírez Torres",
-          "document_type": "TI",
-          "document_number": "1122334455",
-          "email": "ana.ramirez@example.com",
-          "appointment_id": "APT-2024-004",
-          "photo": "https://i.pravatar.cc/150?img=10",
-          "scheduled_time": "14:00",
-          "test_type": "TEORICO",
-          "status": "confirmed"
-        },
-        {
-          "user_id": "USR-005",
-          "first_name": "Pedro",
-          "last_name": "Sánchez Villa",
-          "document_type": "CC",
-          "document_number": "3344556677",
-          "email": "pedro.sanchez@example.com",
-          "appointment_id": "APT-2024-005",
-          "photo": "https://i.pravatar.cc/150?img=8",
-          "scheduled_time": "15:00",
-          "test_type": "TEORICO",
-          "status": "confirmed"
-        }
-      ]
+      "caleId": "CALE-BOG-001",
+      "userId": "USR-001",
+      "firstName": "Juan",
+      "lastName": "Pérez García",
+      "documentType": "CC",
+      "documentNumber": "1234567890",
+      "appointmentId": "APT-2024-001",
+      "scheduledTime": "09:00",
+      "testType": "TEORICO",
+      "licenseCategory": "B1",
+      "status": "confirmed",
+      "roomId": "ROOM-01",
+      "roomName": "Sala de Cómputo 1"
     },
     {
-      "id": "2",
-      "resource_mac": "B2C3D4E5F6A7",
-      "appointment_date": "2024-02-17",
-      "users": [
-        {
-          "user_id": "USR-006",
-          "first_name": "Laura",
-          "last_name": "Díaz Moreno",
-          "document_type": "CC",
-          "document_number": "7788990011",
-          "email": "laura.diaz@example.com",
-          "appointment_id": "APT-2024-006",
-          "photo": "https://i.pravatar.cc/150?img=20",
-          "scheduled_time": "09:00",
-          "test_type": "TEORICO",
-          "status": "confirmed"
-        },
-        {
-          "user_id": "USR-007",
-          "first_name": "Roberto",
-          "last_name": "Jiménez Castro",
-          "document_type": "CE",
-          "document_number": "2233445566",
-          "email": "roberto.jimenez@example.com",
-          "appointment_id": "APT-2024-007",
-          "photo": "https://i.pravatar.cc/150?img=15",
-          "scheduled_time": "10:30",
-          "test_type": "TEORICO",
-          "status": "confirmed"
-        }
-      ]
+      "caleId": "CALE-BOG-001",
+      "userId": "USR-002",
+      "firstName": "María",
+      "lastName": "López Rodríguez",
+      "documentType": "CE",
+      "documentNumber": "9876543210",
+      "appointmentId": "APT-2024-002",
+      "scheduledTime": "10:00",
+      "testType": "TEORICO",
+      "licenseCategory": "C1",
+      "status": "confirmed",
+      "roomId": "ROOM-01",
+      "roomName": "Sala de Cómputo 1"
     },
     {
-      "id": "3",
-      "resource_mac": "C3D4E5F6A7B8",
-      "appointment_date": "2024-02-17",
-      "users": [
-        {
-          "user_id": "USR-008",
-          "first_name": "Sofia",
-          "last_name": "Vargas Ruiz",
-          "document_type": "CC",
-          "document_number": "9988776655",
-          "email": "sofia.vargas@example.com",
-          "appointment_id": "APT-2024-008",
-          "photo": null,
-          "scheduled_time": "08:30",
-          "test_type": "TEORICO",
-          "status": "confirmed"
-        }
-      ]
+      "caleId": "CALE-BOG-002",
+      "userId": "USR-003",
+      "firstName": "Carlos",
+      "lastName": "González Martínez",
+      "documentType": "CC",
+      "documentNumber": "5555666677",
+      "appointmentId": "APT-2024-003",
+      "scheduledTime": "11:00",
+      "testType": "PRACTICO",
+      "licenseCategory": "A2",
+      "status": "confirmed",
+      "roomId": "TRACK-01",
+      "roomName": "Pista de Motos"
     }
   ],
   "test_results": [
     {
-      "id": "1",
-      "test_result_id": "TST-2024-001",
-      "user_id": "USR-001",
-      "appointment_id": "APT-2024-001",
-      "test_type": "TEORICO",
+      "testResultId": "TST-2024-001",
+      "userId": "USR-001",
+      "appointmentId": "APT-2024-001",
+      "testType": "TEORICO",
       "result": {
-        "total_questions": 40,
-        "correct_answers": 36,
-        "incorrect_answers": 4,
-        "score_percentage": 90,
-        "passing_score": 80,
-        "passed": true,
-        "duration_minutes": 45,
-        "categories": {
-          "senales_transito": 10,
-          "normas_circulacion": 12,
-          "seguridad_vial": 8,
-          "primeros_auxilios": 6
-        }
+        "score": 90,
+        "approved": true
       },
       "status": "completed",
-      "notes": "Aprobado con excelente puntaje",
-      "performed_at": "2024-02-17T09:30:00Z",
-      "created_at": "2024-02-17T09:35:00Z",
-      "updated_at": "2024-02-17T09:35:00Z"
-    },
-    {
-      "id": "2",
-      "test_result_id": "TST-2024-002",
-      "user_id": "USR-003",
-      "appointment_id": "APT-2024-003",
-      "test_type": "VIA_PUBLICA",
-      "result": {
-        "passed": true,
-        "duration_minutes": 50,
-        "route_completed": true,
-        "distance_km": 12.5,
-        "evaluation_criteria": {
-          "control_vehiculo": "EXCELENTE",
-          "observacion_senales": "BUENO",
-          "uso_espejos": "EXCELENTE",
-          "cambios_carril": "BUENO",
-          "velocidad_apropiada": "EXCELENTE",
-          "distancia_seguridad": "BUENO",
-          "giros_intersecciones": "EXCELENTE",
-          "estacionamiento": "BUENO"
-        },
-        "faults": {
-          "critical": 0,
-          "major": 0,
-          "minor": 2
-        },
-        "traffic_conditions": "MODERADO",
-        "weather_conditions": "SOLEADO"
-      },
-      "status": "completed",
-      "notes": "Conducción segura y responsable. Apto para licencia.",
-      "performed_at": "2024-02-17T14:00:00Z",
-      "created_at": "2024-02-17T14:55:00Z",
-      "updated_at": "2024-02-17T14:55:00Z"
+      "createdAt": "2024-02-26T10:00:00Z"
     }
-  ]
+  ],
+  "sync_status": {
+    "lastUpdate": "2024-02-26T08:00:00Z",
+    "recordId": "REC-999",
+    "status": "synced"
+  }
 }

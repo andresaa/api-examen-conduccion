@@ -1,0 +1,1409 @@
+openapi: 3.0.3
+info:
+  title: Consultant Service API - Driving Exam Management System
+  version: 3.0.0
+  description: |
+    REST API for managing CALE classrooms, appointments and driving exam results.
+
+    ## Endpoints
+    | Method | Path | Description |
+    |--------|------|-------------|
+    | GET    | /consultant-service/v1/health | Service health check |
+    | POST   | /consultant-service/v1/auth/login | Authenticate and obtain access token |
+    | GET    | /consultant-service/v1/cales | List all registered CALE classrooms |
+    | GET    | /consultant-service/v1/appointment/{caleId} | Get all applicants assigned to a CALE for today |
+    | POST   | /consultant-service/v1/appointment/test-result | Submit exam result (webhook) |
+    | GET    | /consultant-service/v1/resource-sync/status | Check if a database record has been modified |
+
+    ## Standard response envelope
+    Every endpoint returns responses wrapped in the following envelope:
+    ```json
+    {
+      "success": true,
+      "message": "Human-readable description of the operation result",
+      "data": {}
+    }
+    ```
+    - `success` — `true` when the operation succeeded, `false` on errors
+    - `message` — Informational text about the result of the request
+    - `data` — Payload of the response. **Always present, even if empty `{}`**
+
+    ## Authentication
+    All endpoints except `/health` and `/auth/login` require a Bearer token:
+    ```
+    Authorization: Bearer <accessToken>
+    ```
+    Token lifetime is fixed at **24 hours**. Re-authenticate after expiration.
+
+    ## Field naming convention
+    All fields follow **camelCase** convention.
+
+    ## Document types (`documentType`)
+    | Code | Description |
+    |------|-------------|
+    | TI  | Tarjeta de Identidad |
+    | CC  | Cédula de Ciudadanía |
+    | CE  | Cédula de Extranjería |
+    | PP  | Pasaporte |
+    | CD  | Carnet Diplomático |
+    | PPT | Permiso de Protección Temporal |
+
+    ## License categories (`licenseCategory`)
+    | Category | Type |
+    |----------|------|
+    | A1, A2 | Motorcycle |
+    | B1, B2, B3 | Light vehicle |
+    | C1, C2, C3 | Heavy vehicle |
+
+    ## Exam modules (from CALE evaluation screen)
+    Modules reported in `result.modules`:
+    - **Actitudinal** (12 questions)
+    - **Movilidad** (10 questions)
+    - **Normas de tránsito** (6 questions)
+    - **Señalización** (6 questions)
+    - **Vehículo** (6 questions)
+
+    ## Evidence and audit log file paths
+    Files are stored locally following this structure:
+    ```
+    ../{appointmentId}/{userId}/evidence/
+      ├── img-001.jpg        ← evidence photos
+      ├── img-002.jpg
+      └── audit-log.json     ← full exam bitácora (questions, answers,
+                                 results, timings, evidence paths, etc.)
+    ```
+
+    ## Integration flow
+    ```
+    Request 1 → GET /cales             → Response: caleId, caleName
+                                               ↓
+    Request 2 → GET /appointment/{caleId}  → Response: full applicant list
+                                               (includes roomId and roomName
+                                                — the exam room within the CALE)
+    ```
+
+    ## Resource Sync
+    The `/resource-sync/status` endpoint is **purely informational**.
+    It tells the external consumer whether a specific database record has changed
+    and when, so the consumer can decide whether to trigger a data refresh.
+    The consumer is responsible for executing the actual update process.
+
+servers:
+  - url: https://api-examen-conduccion.onrender.com
+    description: Production server
+  - url: http://localhost:3000
+    description: Local development server
+
+tags:
+  - name: Health
+    description: Service availability check
+  - name: Auth
+    description: Authentication and token management
+  - name: CALE
+    description: CALE classroom catalog registered on the platform
+  - name: Appointments
+    description: Daily applicant assignments per CALE classroom
+  - name: Test Results
+    description: Webhook for receiving structured exam results
+  - name: Resource Sync
+    description: Informational endpoint — signals whether a database record changed and when
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SECURITY SCHEME
+# ─────────────────────────────────────────────────────────────────────────────
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token obtained from POST /consultant-service/v1/auth/login
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # REUSABLE SCHEMAS
+  # ───────────────────────────────────────────────────────────────────────────
+  schemas:
+
+    # ── Standard API response envelope ────────────────────────────────────
+    ApiResponse:
+      type: object
+      required:
+        - success
+        - message
+        - data
+      properties:
+        success:
+          type: boolean
+          description: true when the operation succeeded, false on any error
+          example: true
+        message:
+          type: string
+          description: Human-readable description of the operation result
+          example: "Request processed successfully."
+        data:
+          type: object
+          description: Payload of the response. Always present, even if empty.
+          additionalProperties: true
+
+    # ── CALE summary (used in GET /cales) ─────────────────────────────────
+    CaleSummary:
+      type: object
+      required:
+        - caleId
+        - caleName
+      properties:
+        caleId:
+          type: string
+          description: Unique identifier of the CALE within its evaluation center.
+          example: "CALE-BOG-001"
+        caleName:
+          type: string
+          description: Human-readable name of the CALE classroom
+          example: "CALE Bogotá Norte"
+
+    # ── Applicant appointment (used in GET /appointment/{caleId}) ─────────
+    ApplicantAppointment:
+      type: object
+      required:
+        - userId
+        - firstName
+        - lastName
+        - documentType
+        - documentNumber
+        - appointmentId
+        - scheduledTime
+        - testType
+        - licenseCategory
+        - status
+        - roomId
+        - roomName
+      properties:
+        userId:
+          type: string
+          description: Unique identifier of the applicant
+          example: "USR-001"
+        firstName:
+          type: string
+          description: Applicant's first name
+          example: "Juan"
+        lastName:
+          type: string
+          description: Applicant's last name(s)
+          example: "Pérez García"
+        documentType:
+          type: string
+          description: |
+            Type of identification document:
+            - **TI**: Tarjeta de Identidad
+            - **CC**: Cédula de Ciudadanía
+            - **CE**: Cédula de Extranjería
+            - **PP**: Pasaporte
+            - **CD**: Carnet Diplomático
+            - **PPT**: Permiso de Protección Temporal
+          enum: [TI, CC, CE, PP, CD, PPT]
+          example: "CC"
+        documentNumber:
+          type: string
+          description: Identification document number
+          example: "1234567890"
+        email:
+          type: string
+          format: email
+          description: Applicant's email address
+          example: "juan.perez@example.com"
+        appointmentId:
+          type: string
+          description: Unique identifier of the scheduled appointment
+          example: "APT-2024-001"
+        photoUrl:
+          type: string
+          nullable: true
+          description: URL of the applicant's profile photo. Null if not available.
+          example: "https://i.pravatar.cc/150?img=1"
+        scheduledTime:
+          type: string
+          description: Appointment time in HH:mm format (24h)
+          pattern: '^([01]\d|2[0-3]):[0-5]\d$'
+          example: "09:00"
+        testType:
+          type: string
+          description: Type of exam scheduled
+          enum: [TEORICO, DESTREZA_INDIVIDUAL, VIA_PUBLICA]
+          example: "TEORICO"
+        licenseCategory:
+          type: string
+          description: |
+            License category the applicant is applying for:
+            - **A1, A2**: Motorcycle categories
+            - **B1, B2, B3**: Light vehicle categories
+            - **C1, C2, C3**: Heavy vehicle categories
+          enum: [A1, A2, B1, B2, B3, C1, C2, C3]
+          example: "B1"
+        status:
+          type: string
+          description: Current status of the appointment
+          enum: [confirmed, pending, cancelled, completed]
+          example: "confirmed"
+        roomId:
+          type: string
+          description: |
+            Unique identifier of the exam room within the CALE where the applicant
+            will take the exam. Rooms are associated to CALEs in the internal database.
+          example: "ROOM-BOG-001-A"
+        roomName:
+          type: string
+          description: Human-readable name of the exam room
+          example: "Sala A"
+
+    # ── Module result (percentage-based) ──────────────────────────────────
+    ModuleResult:
+      type: object
+      required:
+        - moduleName
+        - totalQuestions
+        - scorePercentage
+        - minimumPassingScore
+        - passed
+      properties:
+        moduleName:
+          type: string
+          description: |
+            Name of the thematic nucleus evaluated (from CALE evaluation screen):
+            - Actitudinal (12 questions)
+            - Movilidad (10 questions)
+            - Normas de tránsito (6 questions)
+            - Señalización (6 questions)
+            - Vehículo (6 questions)
+          enum:
+            - Actitudinal
+            - Movilidad
+            - "Normas de tránsito"
+            - "Señalización"
+            - "Vehículo"
+          example: "Actitudinal"
+        totalQuestions:
+          type: integer
+          description: Total number of questions in this module
+          example: 12
+        scorePercentage:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 100
+          description: Percentage of correct answers obtained in this module
+          example: 20.0
+        minimumPassingScore:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 100
+          description: Minimum percentage required to pass this module
+          example: 80.0
+        passed:
+          type: boolean
+          description: Whether the applicant passed this module (scorePercentage >= minimumPassingScore)
+          example: false
+
+    # ── Audit log / Bitácora ───────────────────────────────────────────────
+    ExamAuditLog:
+      type: object
+      required:
+        - auditLogPath
+        - fraudInvalidated
+      description: |
+        Bitácora of the exam. The audit log file is stored at:
+        `../{appointmentId}/{userId}/evidence/audit-log.json`
+
+        It contains: all questions presented, applicant answers, results per module,
+        start/end timestamps, evidence image paths, and all observations
+        (including PC reassignment notes, fraud incidents, etc.).
+      properties:
+        auditLogPath:
+          type: string
+          description: |
+            Local path to the `.json` audit log file for this exam.
+            Convention: `../{appointmentId}/{userId}/evidence/audit-log.json`
+          example: "../APT-2024-002/USR-002/evidence/audit-log.json"
+        fraudInvalidated:
+          type: boolean
+          description: Whether the exam was invalidated due to fraud or any disciplinary reason.
+          example: false
+        fraudInvalidationReason:
+          type: string
+          nullable: true
+          description: |
+            Description of the fraud or invalidation reason.
+            Required when fraudInvalidated is true. Null otherwise.
+          example: null
+        additionalObservations:
+          type: string
+          nullable: true
+          description: |
+            Any relevant notes recorded during or after the exam, including:
+            PC reassignment incidents (hardware failures, screen issues),
+            fraud or disciplinary events, accommodation requests, or any other
+            observation that does not alter the exam result but should be registered.
+          example: null
+
+    # ── Full exam result object (fixed schema) ─────────────────────────────
+    ExamResult:
+      type: object
+      required:
+        - startTime
+        - endTime
+        - modules
+        - overallPassed
+        - evidenceImagePaths
+        - auditLog
+      properties:
+        startTime:
+          type: string
+          format: date-time
+          description: Timestamp when the applicant started the exam
+          example: "2024-02-17T09:00:00Z"
+        endTime:
+          type: string
+          format: date-time
+          description: Timestamp when the applicant finished the exam
+          example: "2024-02-17T09:42:00Z"
+        modules:
+          type: array
+          minItems: 5
+          maxItems: 5
+          description: |
+            Results for each of the 5 thematic nuclei, expressed in percentages.
+            The applicant must achieve minimumPassingScore in every module
+            for overallPassed to be true.
+          items:
+            $ref: '#/components/schemas/ModuleResult'
+        overallPassed:
+          type: boolean
+          description: |
+            Global exam outcome.
+            true  = Applicant passed ALL 5 modules — APPROVED.
+            false = Applicant failed one or more modules — NOT APPROVED.
+          example: false
+        evidenceImagePaths:
+          type: array
+          description: |
+            Array of local file system paths to evidence images captured during
+            the exam. Convention: `../{appointmentId}/{userId}/evidence/<filename>.<ext>`
+          items:
+            type: string
+          example:
+            - "../APT-2024-002/USR-002/evidence/img-001.jpg"
+            - "../APT-2024-002/USR-002/evidence/img-002.jpg"
+            - "../APT-2024-002/USR-002/evidence/img-003.jpg"
+        auditLog:
+          $ref: '#/components/schemas/ExamAuditLog'
+
+# ─────────────────────────────────────────────────────────────────────────────
+# GLOBAL SECURITY
+# ─────────────────────────────────────────────────────────────────────────────
+security:
+  - BearerAuth: []
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PATHS
+# ─────────────────────────────────────────────────────────────────────────────
+paths:
+
+  # ===========================================================================
+  # HEALTH CHECK
+  # ===========================================================================
+  /consultant-service/v1/health:
+    get:
+      tags:
+        - Health
+      summary: Service health check
+      description: |
+        Returns the current operational status of the service.
+        Does **not** require authentication.
+      operationId: getHealthStatus
+      security: []
+      responses:
+        '200':
+          description: Service is operational
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          status:
+                            type: string
+                            enum: [UP, DEGRADED]
+                            example: "UP"
+                          version:
+                            type: string
+                            example: "3.0.0"
+                          timestamp:
+                            type: string
+                            format: date-time
+                            example: "2024-02-17T10:00:00Z"
+              examples:
+                serviceUp:
+                  summary: Service fully operational
+                  value:
+                    success: true
+                    message: "Service is running correctly."
+                    data:
+                      status: "UP"
+                      version: "3.0.0"
+                      timestamp: "2024-02-17T10:00:00Z"
+                serviceDegraded:
+                  summary: Service running with reduced performance
+                  value:
+                    success: true
+                    message: "Service is running with reduced performance."
+                    data:
+                      status: "DEGRADED"
+                      version: "3.0.0"
+                      timestamp: "2024-02-17T10:00:00Z"
+
+  # ===========================================================================
+  # AUTH — LOGIN
+  # ===========================================================================
+  /consultant-service/v1/auth/login:
+    post:
+      tags:
+        - Auth
+      summary: Authenticate and obtain access token
+      description: |
+        Receives username and password. If valid, returns a JWT access token
+        to be used in all subsequent API calls.
+
+        **Token usage:**
+        ```
+        Authorization: Bearer <accessToken>
+        ```
+        # NOTE: Token lifetime is fixed at 24 hours (86400 seconds).
+        # After expiration the client must re-authenticate.
+      operationId: login
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - username
+                - password
+              properties:
+                username:
+                  type: string
+                  description: Registered username (typically an email address)
+                  example: "operator.cale@example.com"
+                password:
+                  type: string
+                  format: password
+                  description: User password
+                  example: "S3cur3P@ss!"
+            examples:
+              validCredentials:
+                summary: Valid login credentials
+                value:
+                  username: "operator.cale@example.com"
+                  password: "S3cur3P@ss!"
+      responses:
+        '200':
+          description: Authentication successful — JWT token returned
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - accessToken
+                          - tokenType
+                        properties:
+                          accessToken:
+                            type: string
+                            # Token lifetime: 24 hours (86400 s). Re-authenticate after expiration.
+                            description: JWT access token. Valid for 24 hours.
+                            example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJVU1ItMDAxIn0.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"
+                          tokenType:
+                            type: string
+                            enum: [Bearer]
+                            description: Token scheme — always "Bearer"
+                            example: "Bearer"
+              examples:
+                loginSuccess:
+                  summary: Successful login
+                  value:
+                    success: true
+                    message: "Authentication successful."
+                    data:
+                      accessToken: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJVU1ItMDAxIn0.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"
+                      tokenType: "Bearer"
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+              examples:
+                invalidCredentials:
+                  summary: Wrong username or password
+                  value:
+                    success: false
+                    message: "The username or password provided is incorrect."
+                    data: {}
+
+  # ===========================================================================
+  # CALE — List all CALE classrooms
+  # ===========================================================================
+  /consultant-service/v1/cales:
+    get:
+      tags:
+        - CALE
+      summary: Get all registered CALE classrooms
+      description: |
+        Returns all CALE classrooms registered on the platform.
+        **No parameters required.**
+
+        Each item contains only:
+        - `caleId` — unique identifier of the CALE (unique per center)
+        - `caleName` — human-readable name
+
+        Use the returned `caleId` values to query applicant assignments via
+        `GET /appointment/{caleId}`.
+      operationId: getAllCales
+      responses:
+        '200':
+          description: List of registered CALE classrooms
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - cales
+                        properties:
+                          cales:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/CaleSummary'
+              examples:
+                caleList:
+                  summary: Registered CALE classrooms
+                  value:
+                    success: true
+                    message: "CALE classrooms retrieved successfully."
+                    data:
+                      cales:
+                        - caleId: "CALE-BOG-001"
+                          caleName: "CALE Bogotá Norte"
+                        - caleId: "CALE-BOG-002"
+                          caleName: "CALE Bogotá Sur"
+                        - caleId: "CALE-MED-001"
+                          caleName: "CALE Medellín"
+        '401':
+          description: Missing or invalid authentication token
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+              examples:
+                unauthorized:
+                  summary: No valid token provided
+                  value:
+                    success: false
+                    message: "A valid Bearer token is required to access this resource."
+                    data: {}
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+              examples:
+                internalError:
+                  summary: Unexpected server error
+                  value:
+                    success: false
+                    message: "An unexpected error occurred. Please try again later."
+                    data: {}
+
+  # ===========================================================================
+  # APPOINTMENTS — Applicants by CALE
+  # ===========================================================================
+  /consultant-service/v1/appointment/{caleId}:
+    get:
+      tags:
+        - Appointments
+      summary: Get all applicants assigned to a CALE for today
+      description: |
+        Returns the complete list of applicants with appointments scheduled for the
+        **current day** in the CALE identified by `caleId`.
+
+        Each applicant includes their personal data, appointment details and the
+        **exam room** (`roomId`, `roomName`) within the CALE where they will take
+        the exam. Rooms are linked to CALEs in the internal database.
+
+        > All examples use `testType: TEORICO`.
+      operationId: getAppointmentsByCaleId
+      parameters:
+        - name: caleId
+          in: path
+          required: true
+          description: |
+            Unique identifier of the CALE classroom.
+            Obtain valid values from `GET /consultant-service/v1/cales`.
+          schema:
+            type: string
+          examples:
+            bogotaNorth:
+              value: "CALE-BOG-001"
+              summary: CALE Bogotá Norte
+            bogotaSouth:
+              value: "CALE-BOG-002"
+              summary: CALE Bogotá Sur
+      responses:
+        '200':
+          description: Full list of applicants assigned to the CALE for today
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - appointmentDate
+                          - totalApplicants
+                          - applicants
+                        properties:
+                          appointmentDate:
+                            type: string
+                            format: date
+                            description: Current date for which appointments are listed
+                            example: "2024-02-17"
+                          totalApplicants:
+                            type: integer
+                            description: Total number of applicants with appointments today in this CALE
+                            example: 3
+                          applicants:
+                            type: array
+                            description: |
+                              Complete list of applicants assigned to this CALE today.
+                              Each applicant includes the exam room (roomId, roomName)
+                              within the CALE where they will take the exam.
+                            items:
+                              $ref: '#/components/schemas/ApplicantAppointment'
+              examples:
+                caleWithApplicants:
+                  summary: CALE with multiple applicants scheduled today
+                  value:
+                    success: true
+                    message: "Applicants for CALE-BOG-001 retrieved successfully."
+                    data:
+                      appointmentDate: "2024-02-17"
+                      totalApplicants: 3
+                      applicants:
+                        - userId: "USR-001"
+                          firstName: "Juan"
+                          lastName: "Pérez García"
+                          documentType: "CC"
+                          documentNumber: "1234567890"
+                          email: "juan.perez@example.com"
+                          appointmentId: "APT-2024-001"
+                          photoUrl: "https://i.pravatar.cc/150?img=1"
+                          scheduledTime: "09:00"
+                          testType: "TEORICO"
+                          licenseCategory: "B1"
+                          status: "confirmed"
+                          roomId: "ROOM-BOG-001-A"
+                          roomName: "Sala A"
+                        - userId: "USR-002"
+                          firstName: "María"
+                          lastName: "López Rodríguez"
+                          documentType: "CE"
+                          documentNumber: "9876543210"
+                          email: "maria.lopez@example.com"
+                          appointmentId: "APT-2024-002"
+                          photoUrl: null
+                          scheduledTime: "10:00"
+                          testType: "TEORICO"
+                          licenseCategory: "A2"
+                          status: "confirmed"
+                          roomId: "ROOM-BOG-001-A"
+                          roomName: "Sala A"
+                        - userId: "USR-003"
+                          firstName: "Carlos"
+                          lastName: "González Martínez"
+                          documentType: "TI"
+                          documentNumber: "5555666677"
+                          email: "carlos.gonzalez@example.com"
+                          appointmentId: "APT-2024-003"
+                          photoUrl: "https://i.pravatar.cc/150?img=3"
+                          scheduledTime: "11:00"
+                          testType: "TEORICO"
+                          licenseCategory: "C1"
+                          status: "pending"
+                          roomId: "ROOM-BOG-001-B"
+                          roomName: "Sala B"
+                emptyCale:
+                  summary: CALE with no appointments today
+                  value:
+                    success: true
+                    message: "No applicants assigned to CALE-MED-001 for today."
+                    data:
+                      appointmentDate: "2024-02-17"
+                      totalApplicants: 0
+                      applicants: []
+        '400':
+          description: Invalid caleId format
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+              examples:
+                invalidFormat:
+                  summary: caleId with invalid format
+                  value:
+                    success: false
+                    message: "The provided caleId has an invalid format."
+                    data:
+                      field: "caleId"
+                      providedValue: "!!!INVALID"
+        '401':
+          description: Missing or invalid authentication token
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+              examples:
+                unauthorized:
+                  summary: No valid token provided
+                  value:
+                    success: false
+                    message: "A valid Bearer token is required to access this resource."
+                    data: {}
+        '404':
+          description: CALE not found
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+              examples:
+                caleNotFound:
+                  summary: No CALE registered with that caleId
+                  value:
+                    success: false
+                    message: "No CALE was found with caleId: CALE-XXX-999"
+                    data:
+                      caleId: "CALE-XXX-999"
+                      suggestion: "Use GET /consultant-service/v1/cales to retrieve valid caleId values."
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+              examples:
+                internalError:
+                  summary: Unexpected server error
+                  value:
+                    success: false
+                    message: "An unexpected error occurred. Please try again later."
+                    data: {}
+
+  # ===========================================================================
+  # TEST RESULTS — Webhook
+  # ===========================================================================
+  /consultant-service/v1/appointment/test-result:
+    post:
+      tags:
+        - Test Results
+      summary: Submit exam result (webhook)
+      description: |
+        Endpoint for CALE systems to report the structured result of a completed exam.
+
+        ## Required body fields
+        | Field | Type | Description |
+        |-------|------|-------------|
+        | `userId` | string | Applicant who took the exam |
+        | `appointmentId` | string | Associated appointment identifier |
+        | `testType` | string | Type of exam |
+        | `startPcMac` | string | MAC address of the PC where the applicant **started** |
+        | `endPcMac` | string | MAC address of the PC where the applicant **finished** |
+        | `result` | object | Structured result object (fixed schema) |
+
+        ## The `result` object
+        | Field | Type | Description |
+        |-------|------|-------------|
+        | `startTime` | datetime | When the applicant started the exam |
+        | `endTime` | datetime | When the applicant finished the exam |
+        | `modules` | array[5] | One entry per thematic nucleus — **percentage-based** |
+        | `overallPassed` | boolean | `true` = APPROVED, `false` = NOT APPROVED |
+        | `evidenceImagePaths` | array | `../{appointmentId}/{userId}/evidence/<file>` |
+        | `auditLog` | object | Bitácora — see below |
+
+        ## Module names (from CALE evaluation screen)
+        | Nucleus | Total questions |
+        |---------|----------------|
+        | Actitudinal | 12 |
+        | Movilidad | 10 |
+        | Normas de tránsito | 6 |
+        | Señalización | 6 |
+        | Vehículo | 6 |
+
+        ## `auditLog` (Bitácora)
+        Stored at `../{appointmentId}/{userId}/evidence/audit-log.json`.
+        Contains all questions, applicant answers, results, timings, evidence paths
+        and all observations.
+
+        | Field | Type | Description |
+        |-------|------|-------------|
+        | `auditLogPath` | path | `../{appointmentId}/{userId}/evidence/audit-log.json` |
+        | `fraudInvalidated` | boolean | Whether exam was invalidated for fraud |
+        | `fraudInvalidationReason` | string/null | Reason for invalidation |
+        | `additionalObservations` | string/null | All other observations: PC reassignment, accommodation requests, incidents, etc. |
+
+        ## Approval rule
+        `overallPassed = true` **only** when the applicant achieves `minimumPassingScore`
+        in **all 5 modules**.
+
+        > All examples use `testType: TEORICO`.
+      operationId: submitTestResult
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - userId
+                - appointmentId
+                - testType
+                - startPcMac
+                - endPcMac
+                - result
+              properties:
+                userId:
+                  type: string
+                  description: Unique identifier of the applicant who took the exam
+                  example: "USR-002"
+                appointmentId:
+                  type: string
+                  description: Unique identifier of the appointment associated with the exam
+                  example: "APT-2024-002"
+                testType:
+                  type: string
+                  description: Type of exam taken
+                  enum: [TEORICO, DESTREZA_INDIVIDUAL, VIA_PUBLICA]
+                  example: "TEORICO"
+                startPcMac:
+                  type: string
+                  description: |
+                    MAC address (12 hex characters, no separators) of the PC where
+                    the applicant **started** the exam.
+                  pattern: '^[A-Fa-f0-9]{12}$'
+                  example: "A1B2C3D4E5F6"
+                endPcMac:
+                  type: string
+                  description: |
+                    MAC address (12 hex characters, no separators) of the PC where
+                    the applicant **finished** the exam. Equal to startPcMac when
+                    no PC reassignment occurred.
+                  pattern: '^[A-Fa-f0-9]{12}$'
+                  example: "A1B2C3D4E5F6"
+                result:
+                  $ref: '#/components/schemas/ExamResult'
+
+            examples:
+
+              # ── NOT APPROVED — Actitudinal below threshold ─────────────────
+              teoricoFailed:
+                summary: "TEORICO — NOT APPROVED (Actitudinal 20%, all others passed)"
+                value:
+                  userId: "USR-002"
+                  appointmentId: "APT-2024-002"
+                  testType: "TEORICO"
+                  startPcMac: "A1B2C3D4E5F6"
+                  endPcMac: "A1B2C3D4E5F6"
+                  result:
+                    startTime: "2024-02-17T09:00:00Z"
+                    endTime: "2024-02-17T09:42:00Z"
+                    modules:
+                      - moduleName: "Actitudinal"
+                        totalQuestions: 12
+                        scorePercentage: 20.0
+                        minimumPassingScore: 80.0
+                        passed: false
+                      - moduleName: "Movilidad"
+                        totalQuestions: 10
+                        scorePercentage: 80.0
+                        minimumPassingScore: 80.0
+                        passed: true
+                      - moduleName: "Normas de tránsito"
+                        totalQuestions: 6
+                        scorePercentage: 80.0
+                        minimumPassingScore: 80.0
+                        passed: true
+                      - moduleName: "Señalización"
+                        totalQuestions: 6
+                        scorePercentage: 80.0
+                        minimumPassingScore: 80.0
+                        passed: true
+                      - moduleName: "Vehículo"
+                        totalQuestions: 6
+                        scorePercentage: 100.0
+                        minimumPassingScore: 80.0
+                        passed: true
+                    overallPassed: false
+                    evidenceImagePaths:
+                      - "../APT-2024-002/USR-002/evidence/img-001.jpg"
+                      - "../APT-2024-002/USR-002/evidence/img-002.jpg"
+                      - "../APT-2024-002/USR-002/evidence/img-003.jpg"
+                    auditLog:
+                      auditLogPath: "../APT-2024-002/USR-002/evidence/audit-log.json"
+                      fraudInvalidated: false
+                      fraudInvalidationReason: null
+                      additionalObservations: null
+
+              # ── APPROVED — All 5 modules passed ───────────────────────────
+              teoricoPassed:
+                summary: "TEORICO — APPROVED (all 5 modules passed)"
+                value:
+                  userId: "USR-006"
+                  appointmentId: "APT-2024-006"
+                  testType: "TEORICO"
+                  startPcMac: "B2C3D4E5F6A1"
+                  endPcMac: "B2C3D4E5F6A1"
+                  result:
+                    startTime: "2024-02-17T11:00:00Z"
+                    endTime: "2024-02-17T11:45:00Z"
+                    modules:
+                      - moduleName: "Actitudinal"
+                        totalQuestions: 12
+                        scorePercentage: 91.67
+                        minimumPassingScore: 80.0
+                        passed: true
+                      - moduleName: "Movilidad"
+                        totalQuestions: 10
+                        scorePercentage: 90.0
+                        minimumPassingScore: 80.0
+                        passed: true
+                      - moduleName: "Normas de tránsito"
+                        totalQuestions: 6
+                        scorePercentage: 83.33
+                        minimumPassingScore: 80.0
+                        passed: true
+                      - moduleName: "Señalización"
+                        totalQuestions: 6
+                        scorePercentage: 83.33
+                        minimumPassingScore: 80.0
+                        passed: true
+                      - moduleName: "Vehículo"
+                        totalQuestions: 6
+                        scorePercentage: 100.0
+                        minimumPassingScore: 80.0
+                        passed: true
+                    overallPassed: true
+                    evidenceImagePaths:
+                      - "../APT-2024-006/USR-006/evidence/img-001.jpg"
+                      - "../APT-2024-006/USR-006/evidence/img-002.jpg"
+                    auditLog:
+                      auditLogPath: "../APT-2024-006/USR-006/evidence/audit-log.json"
+                      fraudInvalidated: false
+                      fraudInvalidationReason: null
+                      additionalObservations: "Exam completed without incidents."
+
+              # ── APPROVED — PC reassignment mid-exam ───────────────────────
+              teoricoWithPcReassignment:
+                summary: "TEORICO — APPROVED, PC reassignment noted in additionalObservations"
+                value:
+                  userId: "USR-007"
+                  appointmentId: "APT-2024-007"
+                  testType: "TEORICO"
+                  startPcMac: "A1B2C3D4E5F6"
+                  endPcMac: "C3D4E5F6A1B2"
+                  result:
+                    startTime: "2024-02-17T14:00:00Z"
+                    endTime: "2024-02-17T14:50:00Z"
+                    modules:
+                      - moduleName: "Actitudinal"
+                        totalQuestions: 12
+                        scorePercentage: 83.33
+                        minimumPassingScore: 80.0
+                        passed: true
+                      - moduleName: "Movilidad"
+                        totalQuestions: 10
+                        scorePercentage: 80.0
+                        minimumPassingScore: 80.0
+                        passed: true
+                      - moduleName: "Normas de tránsito"
+                        totalQuestions: 6
+                        scorePercentage: 80.0
+                        minimumPassingScore: 80.0
+                        passed: true
+                      - moduleName: "Señalización"
+                        totalQuestions: 6
+                        scorePercentage: 80.0
+                        minimumPassingScore: 80.0
+                        passed: true
+                      - moduleName: "Vehículo"
+                        totalQuestions: 6
+                        scorePercentage: 100.0
+                        minimumPassingScore: 80.0
+                        passed: true
+                    overallPassed: true
+                    evidenceImagePaths:
+                      - "../APT-2024-007/USR-007/evidence/img-001.jpg"
+                      - "../APT-2024-007/USR-007/evidence/img-002.jpg"
+                    auditLog:
+                      auditLogPath: "../APT-2024-007/USR-007/evidence/audit-log.json"
+                      fraudInvalidated: false
+                      fraudInvalidationReason: null
+                      additionalObservations: "PC MAC A1B2C3D4E5F6 keyboard failure at minute 10. Applicant moved to PC MAC C3D4E5F6A1B2. Session state preserved, exam continued without data loss."
+
+              # ── NOT APPROVED — Exam invalidated by fraud ──────────────────
+              teoricoFraudInvalidated:
+                summary: "TEORICO — NOT APPROVED, exam invalidated due to fraud"
+                value:
+                  userId: "USR-009"
+                  appointmentId: "APT-2024-009"
+                  testType: "TEORICO"
+                  startPcMac: "D4E5F6A1B2C3"
+                  endPcMac: "D4E5F6A1B2C3"
+                  result:
+                    startTime: "2024-02-17T15:00:00Z"
+                    endTime: "2024-02-17T15:22:00Z"
+                    modules:
+                      - moduleName: "Actitudinal"
+                        totalQuestions: 12
+                        scorePercentage: 0.0
+                        minimumPassingScore: 80.0
+                        passed: false
+                      - moduleName: "Movilidad"
+                        totalQuestions: 10
+                        scorePercentage: 0.0
+                        minimumPassingScore: 80.0
+                        passed: false
+                      - moduleName: "Normas de tránsito"
+                        totalQuestions: 6
+                        scorePercentage: 0.0
+                        minimumPassingScore: 80.0
+                        passed: false
+                      - moduleName: "Señalización"
+                        totalQuestions: 6
+                        scorePercentage: 0.0
+                        minimumPassingScore: 80.0
+                        passed: false
+                      - moduleName: "Vehículo"
+                        totalQuestions: 6
+                        scorePercentage: 0.0
+                        minimumPassingScore: 80.0
+                        passed: false
+                    overallPassed: false
+                    evidenceImagePaths:
+                      - "../APT-2024-009/USR-009/evidence/img-001.jpg"
+                      - "../APT-2024-009/USR-009/evidence/img-002.jpg"
+                      - "../APT-2024-009/USR-009/evidence/img-003.jpg"
+                    auditLog:
+                      auditLogPath: "../APT-2024-009/USR-009/evidence/audit-log.json"
+                      fraudInvalidated: true
+                      fraudInvalidationReason: "Applicant detected photographing exam questions with a mobile device. Exam invalidated per CALE fraud protocol section 4.2."
+                      additionalObservations: "Incident report filed. Case escalated to the supervisor on duty."
+
+      responses:
+        '200':
+          description: Exam result received and stored successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - appointmentId
+                        properties:
+                          appointmentId:
+                            type: string
+                            description: Appointment identifier echoed back as confirmation
+                            example: "APT-2024-002"
+              examples:
+                resultAccepted:
+                  summary: Result stored successfully
+                  value:
+                    success: true
+                    message: "Exam result received and stored successfully."
+                    data:
+                      appointmentId: "APT-2024-002"
+        '400':
+          description: Invalid or missing fields in the request body
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+              examples:
+                missingFields:
+                  summary: Required fields missing
+                  value:
+                    success: false
+                    message: "One or more required fields are missing."
+                    data:
+                      missingFields: ["startPcMac", "endPcMac"]
+                      requiredFields: ["userId", "appointmentId", "testType", "startPcMac", "endPcMac", "result"]
+                invalidTestType:
+                  summary: Invalid testType value
+                  value:
+                    success: false
+                    message: "The provided testType is not valid."
+                    data:
+                      providedTestType: "INVALID_EXAM"
+                      allowedTypes: ["TEORICO", "DESTREZA_INDIVIDUAL", "VIA_PUBLICA"]
+                invalidResultFormat:
+                  summary: Result field does not match the required schema
+                  value:
+                    success: false
+                    message: "The 'result' field must match the ExamResult schema."
+                    data:
+                      missingResultFields: ["startTime", "endTime", "modules", "overallPassed", "evidenceImagePaths", "auditLog"]
+        '401':
+          description: Missing or invalid authentication token
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+              examples:
+                unauthorized:
+                  summary: No valid token provided
+                  value:
+                    success: false
+                    message: "A valid Bearer token is required to access this resource."
+                    data: {}
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+              examples:
+                internalError:
+                  summary: Unexpected server error
+                  value:
+                    success: false
+                    message: "An unexpected error occurred while processing the exam result."
+                    data: {}
+
+  # ===========================================================================
+  # RESOURCE SYNC — Informational: was a DB record modified?
+  # ===========================================================================
+  /consultant-service/v1/resource-sync/status:
+    get:
+      tags:
+        - Resource Sync
+      summary: Check whether a database record has been modified
+      description: |
+        **Purely informational endpoint.** No data is created or modified.
+
+        Allows an external consumer to query whether a specific database record
+        (identified by `tableName` + `recordId`) has been updated since the last
+        time the consumer processed it.
+
+        ## How to use
+        1. Call this endpoint providing the table name and the record identifier.
+        2. If `hasChanged = true` → the consumer should trigger its own data
+           refresh / sync process against the database.
+        3. If `hasChanged = false` → no action needed; local data is still valid.
+
+        This endpoint does **not** return the actual changed data. It only signals
+        **what changed** (field names) and **when** (`lastModifiedAt`), so the
+        consumer can decide whether to execute its update process.
+
+        ## Query parameters
+        | Parameter | Required | Description |
+        |-----------|----------|-------------|
+        | `tableName` | ✅ | Name of the database table to check (e.g., `appointments`, `cales`, `applicants`) |
+        | `recordId` | ✅ | Primary key or unique identifier of the specific record to check |
+      operationId: getResourceSyncStatus
+      parameters:
+        - name: tableName
+          in: query
+          required: true
+          description: |
+            Name of the database table containing the record to check.
+            Examples: `appointments`, `cales`, `applicants`, `rooms`
+          schema:
+            type: string
+          example: "appointments"
+        - name: recordId
+          in: query
+          required: true
+          description: |
+            Primary key or unique identifier of the specific record to check.
+            Must correspond to a record in the given `tableName`.
+          schema:
+            type: string
+          example: "APT-2024-001"
+      responses:
+        '200':
+          description: Sync status for the requested record returned successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - tableName
+                          - recordId
+                          - hasChanged
+                          - lastModifiedAt
+                        properties:
+                          tableName:
+                            type: string
+                            description: The database table that was checked
+                            example: "appointments"
+                          recordId:
+                            type: string
+                            description: The specific record identifier that was checked
+                            example: "APT-2024-001"
+                          hasChanged:
+                            type: boolean
+                            description: |
+                              true  = The record was modified. The consumer should
+                                      trigger its data refresh process.
+                              false = No changes detected. No action needed.
+                            example: true
+                          lastModifiedAt:
+                            type: string
+                            format: date-time
+                            description: Timestamp of the last modification to this record
+                            example: "2024-02-17T08:45:00Z"
+                          modifiedFields:
+                            type: array
+                            nullable: true
+                            description: |
+                              List of field names that were modified in this record.
+                              Null when hasChanged is false.
+                            items:
+                              type: string
+                            example: ["status", "scheduledTime"]
+              examples:
+                recordChanged:
+                  summary: Record was modified — consumer should refresh
+                  value:
+                    success: true
+                    message: "The record has been modified since the last known state."
+                    data:
+                      tableName: "appointments"
+                      recordId: "APT-2024-001"
+                      hasChanged: true
+                      lastModifiedAt: "2024-02-17T08:45:00Z"
+                      modifiedFields: ["status", "scheduledTime"]
+                recordUnchanged:
+                  summary: Record has not changed — no action needed
+                  value:
+                    success: true
+                    message: "No changes detected for this record."
+                    data:
+                      tableName: "appointments"
+                      recordId: "APT-2024-001"
+                      hasChanged: false
+                      lastModifiedAt: "2024-02-16T07:00:00Z"
+                      modifiedFields: null
+                caleRecordChanged:
+                  summary: CALE record was modified
+                  value:
+                    success: true
+                    message: "The record has been modified since the last known state."
+                    data:
+                      tableName: "cales"
+                      recordId: "CALE-BOG-001"
+                      hasChanged: true
+                      lastModifiedAt: "2024-02-16T18:30:00Z"
+                      modifiedFields: ["caleName"]
+        '400':
+          description: Missing or invalid query parameters
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+              examples:
+                missingParams:
+                  summary: Required query parameters not provided
+                  value:
+                    success: false
+                    message: "Both 'tableName' and 'recordId' query parameters are required."
+                    data:
+                      missingParams: ["recordId"]
+        '401':
+          description: Missing or invalid authentication token
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+              examples:
+                unauthorized:
+                  summary: No valid token provided
+                  value:
+                    success: false
+                    message: "A valid Bearer token is required to access this resource."
+                    data: {}
+        '404':
+          description: Record not found
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+              examples:
+                recordNotFound:
+                  summary: No record found for the given tableName + recordId
+                  value:
+                    success: false
+                    message: "No record was found in table 'appointments' with recordId: APT-9999"
+                    data:
+                      tableName: "appointments"
+                      recordId: "APT-9999"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+              examples:
+                internalError:
+                  summary: Unexpected server error
+                  value:
+                    success: false
+                    message: "An unexpected error occurred. Please try again later."
+                    data: {}
