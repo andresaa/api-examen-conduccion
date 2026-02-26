@@ -1,10 +1,27 @@
 const jsonServer = require('json-server');
+const swaggerUi = require('swagger-ui-express');
+const YAML = require('yamljs');
+
 const server = jsonServer.create();
 const router = jsonServer.router('db.json');
 const middlewares = jsonServer.defaults();
 
+// Cargar definición Swagger
+let swaggerDocument;
+try {
+  swaggerDocument = YAML.load('./swagger.yaml');
+} catch (error) {
+  console.error('Error loading swagger.yaml:', error);
+}
+
 server.use(middlewares);
 server.use(jsonServer.bodyParser);
+
+// Configurar Swagger UI
+if (swaggerDocument) {
+  server.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
+  console.log('📄 Swagger UI available at /api-docs');
+}
 
 // ============================================================================
 // HELPERS PARA RESPUESTA ESTÁNDAR
@@ -115,12 +132,12 @@ server.get('/consultant-service/v1/resource-sync/status', (req, res) => {
 // ENDPOINT: SUBMIT TEST RESULT (WEBHOOK)
 // ============================================================================
 server.post('/consultant-service/v1/appointment/test-result', (req, res) => {
-  const { appointmentId, testType, result, userId, notes } = req.body;
+  const { appointmentId, testType, result, userId, startPcMac, endPcMac, notes } = req.body;
   const db = router.db;
 
-  // Validaciones básicas
-  if (!appointmentId || !testType || !result || !userId) {
-    return sendError(res, 'Missing required fields: appointmentId, testType, result, userId', 400);
+  // Validaciones básicas según Swagger
+  if (!appointmentId || !testType || !result || !userId || !startPcMac || !endPcMac) {
+    return sendError(res, 'Missing required fields: userId, appointmentId, testType, startPcMac, endPcMac, result', 400);
   }
 
   // Verificar que la cita existe

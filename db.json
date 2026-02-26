@@ -67,16 +67,31 @@
       "appointmentId": "APT-2024-001",
       "testType": "TEORICO",
       "result": {
-        "score": 90,
-        "approved": true
+        "startTime": "2024-02-26T09:00:00Z",
+        "endTime": "2024-02-26T09:45:00Z",
+        "modules": [
+          { "moduleName": "Actitudinal", "totalQuestions": 12, "scorePercentage": 100, "minimumPassingScore": 80, "passed": true },
+          { "moduleName": "Movilidad", "totalQuestions": 10, "scorePercentage": 90, "minimumPassingScore": 80, "passed": true },
+          { "moduleName": "Normas de tránsito", "totalQuestions": 6, "scorePercentage": 100, "minimumPassingScore": 80, "passed": true },
+          { "moduleName": "Señalización", "totalQuestions": 6, "scorePercentage": 100, "minimumPassingScore": 80, "passed": true },
+          { "moduleName": "Vehículo", "totalQuestions": 6, "scorePercentage": 100, "minimumPassingScore": 80, "passed": true }
+        ],
+        "overallPassed": true,
+        "evidenceImagePaths": ["../APT-2024-001/USR-001/evidence/img-001.jpg"],
+        "auditLog": {
+          "auditLogPath": "../APT-2024-001/USR-001/evidence/audit-log.json",
+          "fraudInvalidated": false
+        }
       },
       "status": "completed",
       "createdAt": "2024-02-26T10:00:00Z"
     }
   ],
   "sync_status": {
-    "lastUpdate": "2024-02-26T08:00:00Z",
-    "recordId": "REC-999",
-    "status": "synced"
+    "tableName": "appointments",
+    "recordId": "APT-2024-001",
+    "hasChanged": true,
+    "lastModifiedAt": "2024-02-26T08:00:00Z",
+    "modifiedFields": ["status"]
   }
 }

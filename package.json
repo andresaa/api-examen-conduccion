@@ -7,10 +7,16 @@
     "start": "node server.js",
     "dev": "node server.js"
   },
-  "keywords": ["api", "mock", "json-server"],
+  "keywords": [
+    "api",
+    "mock",
+    "json-server"
+  ],
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "json-server": "^0.17.4"
+    "json-server": "^0.17.4",
+    "swagger-ui-express": "^5.0.1",
+    "yamljs": "^0.3.0"
   }
 }
