@@ -66,11 +66,11 @@ info:
     ## Evidence and audit log file paths
     Files are stored locally following this structure:
     ```
-    ../{appointmentId}/{userId}/evidence/
+    ./{userId}/{appointmentId}/evidence/
       ├── img-001.jpg        ← evidence photos
       ├── img-002.jpg
       └── audit-log.json     ← full exam bitácora (questions, answers,
-                                results, timings, evidence paths, etc.)
+                                 results, timings, evidence paths, etc.)
     ```
 
     ## Integration flow
@@ -312,7 +312,7 @@ components:
         - fraudInvalidated
       description: |
         Bitácora of the exam. The audit log file is stored at:
-        `../{appointmentId}/{userId}/evidence/audit-log.json`
+        `./{userId}/{appointmentId}/evidence/audit-log.json`
 
         It contains: all questions presented, applicant answers, results per module,
         start/end timestamps, evidence image paths, and all observations
@@ -322,8 +322,8 @@ components:
           type: string
           description: |
             Local path to the `.json` audit log file for this exam.
-            Convention: `../{appointmentId}/{userId}/evidence/audit-log.json`
-          example: "../APT-2024-002/USR-002/evidence/audit-log.json"
+            Convention: `./{userId}/{appointmentId}/evidence/audit-log.json`
+          example: "./USR-002/APT-2024-002/evidence/audit-log.json"
         fraudInvalidated:
           type: boolean
           description: Whether the exam was invalidated due to fraud or any disciplinary reason.
@@ -387,13 +387,13 @@ components:
           type: array
           description: |
             Array of local file system paths to evidence images captured during
-            the exam. Convention: `../{appointmentId}/{userId}/evidence/<filename>.<ext>`
+            the exam. Convention: `./{userId}/{appointmentId}/evidence/<filename>.<ext>`
           items:
             type: string
           example:
-            - "../APT-2024-002/USR-002/evidence/img-001.jpg"
-            - "../APT-2024-002/USR-002/evidence/img-002.jpg"
-            - "../APT-2024-002/USR-002/evidence/img-003.jpg"
+            - "./USR-002/APT-2024-002/evidence/img-001.jpg"
+            - "./USR-002/APT-2024-002/evidence/img-002.jpg"
+            - "./USR-002/APT-2024-002/evidence/img-003.jpg"
         auditLog:
           $ref: '#/components/schemas/ExamAuditLog'
 
@@ -661,7 +661,7 @@ paths:
       operationId: getAppointmentsByCaleId
       parameters:
         - name: caleId
-        - in: path
+          in: path
           required: true
           description: |
             Unique identifier of the CALE classroom.
@@ -859,7 +859,7 @@ paths:
         | `endTime` | datetime | When the applicant finished the exam |
         | `modules` | array[5] | One entry per thematic nucleus — **percentage-based** |
         | `overallPassed` | boolean | `true` = APPROVED, `false` = NOT APPROVED |
-        | `evidenceImagePaths` | array | `../{appointmentId}/{userId}/evidence/<file>` |
+        | `evidenceImagePaths` | array | `./{userId}/{appointmentId}/evidence/<file>` |
         | `auditLog` | object | Bitácora — see below |
 
         ## Module names (from CALE evaluation screen)
@@ -872,13 +872,13 @@ paths:
         | Vehículo | 6 |
 
         ## `auditLog` (Bitácora)
-        Stored at `../{appointmentId}/{userId}/evidence/audit-log.json`.
+        Stored at `./{userId}/{appointmentId}/evidence/audit-log.json`.
         Contains all questions, applicant answers, results, timings, evidence paths
         and all observations.
 
         | Field | Type | Description |
         |-------|------|-------------|
-        | `auditLogPath` | path | `../{appointmentId}/{userId}/evidence/audit-log.json` |
+        | `auditLogPath` | path | `./{userId}/{appointmentId}/evidence/audit-log.json` |
         | `fraudInvalidated` | boolean | Whether exam was invalidated for fraud |
         | `fraudInvalidationReason` | string/null | Reason for invalidation |
         | `additionalObservations` | string/null | All other observations: PC reassignment, accommodation requests, incidents, etc. |
@@ -976,12 +976,14 @@ paths:
                         passed: true
                     overallPassed: false
                     evidenceImagePaths:
-                      - "../APT-2024-002/USR-002/evidence/img-001.jpg"
-                      - "../APT-2024-002/USR-002/evidence/img-002.jpg"
-                      - "../APT-2024-002/USR-002/evidence/img-003.jpg"
+                      - "./USR-002/APT-2024-002/evidence/img-001.jpg"
+                      - "./USR-002/APT-2024-002/evidence/img-002.jpg"
+                      - "./USR-002/APT-2024-002/evidence/img-003.jpg"
                     auditLog:
-                      auditLogPath: "../APT-2024-002/USR-002/evidence/audit-log.json"
+                      auditLogPath: "./USR-002/APT-2024-002/evidence/audit-log.json"
                       fraudInvalidated: false
+                      fraudInvalidationReason: null
+                      additionalObservations: null
 
               # ── APPROVED — All 5 modules passed ───────────────────────────
               teoricoPassed:
@@ -1023,10 +1025,10 @@ paths:
                         passed: true
                     overallPassed: true
                     evidenceImagePaths:
-                      - "../APT-2024-006/USR-006/evidence/img-001.jpg"
-                      - "../APT-2024-006/USR-006/evidence/img-002.jpg"
+                      - "./USR-006/APT-2024-006/evidence/img-001.jpg"
+                      - "./USR-006/APT-2024-006/evidence/img-002.jpg"
                     auditLog:
-                      auditLogPath: "../APT-2024-006/USR-006/evidence/audit-log.json"
+                      auditLogPath: "./USR-006/APT-2024-006/evidence/audit-log.json"
                       fraudInvalidated: false
                       fraudInvalidationReason: null
                       additionalObservations: "Exam completed without incidents."
@@ -1071,10 +1073,10 @@ paths:
                         passed: true
                     overallPassed: true
                     evidenceImagePaths:
-                      - "../APT-2024-007/USR-007/evidence/img-001.jpg"
-                      - "../APT-2024-007/USR-007/evidence/img-002.jpg"
+                      - "./USR-007/APT-2024-007/evidence/img-001.jpg"
+                      - "./USR-007/APT-2024-007/evidence/img-002.jpg"
                     auditLog:
-                      auditLogPath: "../APT-2024-007/USR-007/evidence/audit-log.json"
+                      auditLogPath: "./USR-007/APT-2024-007/evidence/audit-log.json"
                       fraudInvalidated: false
                       fraudInvalidationReason: null
                       additionalObservations: "PC MAC A1B2C3D4E5F6 keyboard failure at minute 10. Applicant moved to PC MAC C3D4E5F6A1B2. Session state preserved, exam continued without data loss."
@@ -1119,11 +1121,11 @@ paths:
                         passed: false
                     overallPassed: false
                     evidenceImagePaths:
-                      - "../APT-2024-009/USR-009/evidence/img-001.jpg"
-                      - "../APT-2024-009/USR-009/evidence/img-002.jpg"
-                      - "../APT-2024-009/USR-009/evidence/img-003.jpg"
+                      - "./USR-009/APT-2024-009/evidence/img-001.jpg"
+                      - "./USR-009/APT-2024-009/evidence/img-002.jpg"
+                      - "./USR-009/APT-2024-009/evidence/img-003.jpg"
                     auditLog:
-                      auditLogPath: "../APT-2024-009/USR-009/evidence/audit-log.json"
+                      auditLogPath: "./USR-009/APT-2024-009/evidence/audit-log.json"
                       fraudInvalidated: true
                       fraudInvalidationReason: "Applicant detected photographing exam questions with a mobile device. Exam invalidated per CALE fraud protocol section 4.2."
                       additionalObservations: "Incident report filed. Case escalated to the supervisor on duty."
@@ -1222,52 +1224,28 @@ paths:
     get:
       tags:
         - Resource Sync
-      summary: Check whether a database record has been modified
+      summary: Check if the Question Bank has been updated
       description: |
-        **Purely informational endpoint.** No data is created or modified.
-
-        Allows an external consumer to query whether a specific database record
-        (identified by `tableName` + `recordId`) has been updated since the last
-        time the consumer processed it.
-
-        ## How to use
-        1. Call this endpoint providing the table name and the record identifier.
-        2. If `hasChanged = true` → the consumer should trigger its own data
-           refresh / sync process against the database.
-        3. If `hasChanged = false` → no action needed; local data is still valid.
-
-        This endpoint does **not** return the actual changed data. It only signals
-        **what changed** (field names) and **when** (`lastModifiedAt`), so the
-        consumer can decide whether to execute its update process.
-
-        ## Query parameters
-        | Parameter | Required | Description |
-        |-----------|----------|-------------|
-        | `tableName` | ✅ | Name of the database table to check (e.g., `appointments`, `cales`, `applicants`) |
-        | `recordId` | ✅ | Primary key or unique identifier of the specific record to check |
-      operationId: getResourceSyncStatus
+        Checks if the Question Bank has been updated since the provided timestamp.
+        
+        If the response indicates an update is required (`updateRequired: true`), 
+        the consumer should trigger its internal update process.
+        Otherwise (`updateRequired: false`), the consumer can continue using the current version.
+      operationId: getQuestionBankSyncStatus
       parameters:
-        - name: tableName
+        - name: lastSyncDate
           in: query
           required: true
           description: |
-            Name of the database table containing the record to check.
-            Examples: `appointments`, `cales`, `applicants`, `rooms`
+            Timestamp of the last successful sync performed by the consumer.
+            Format: ISO-8601 (e.g., 2024-02-26T10:00:00Z).
           schema:
             type: string
-          example: "appointments"
-        - name: recordId
-          in: query
-          required: true
-          description: |
-            Primary key or unique identifier of the specific record to check.
-            Must correspond to a record in the given `tableName`.
-          schema:
-            type: string
-          example: "APT-2024-001"
+            format: date-time
+          example: "2024-02-20T14:30:00Z"
       responses:
         '200':
-          description: Sync status for the requested record returned successfully
+          description: Sync status returned successfully
           content:
             application/json:
               schema:
@@ -1278,119 +1256,61 @@ paths:
                       data:
                         type: object
                         required:
-                          - tableName
-                          - recordId
-                          - hasChanged
-                          - lastModifiedAt
+                          - updateRequired
+                          - serverSyncDate
                         properties:
-                          tableName:
-                            type: string
-                            description: The database table that was checked
-                            example: "appointments"
-                          recordId:
-                            type: string
-                            description: The specific record identifier that was checked
-                            example: "APT-2024-001"
-                          hasChanged:
+                          updateRequired:
                             type: boolean
                             description: |
-                              true  = The record was modified. The consumer should
-                                      trigger its data refresh process.
-                              false = No changes detected. No action needed.
+                              Indicates if the consumer needs to perform an update process.
+                              true = Updates available. Proceed with update.
+                              false = No updates. Keep current version.
                             example: true
-                          lastModifiedAt:
+                          serverSyncDate:
                             type: string
                             format: date-time
-                            description: Timestamp of the last modification to this record
-                            example: "2024-02-17T08:45:00Z"
-                          modifiedFields:
-                            type: array
-                            nullable: true
                             description: |
-                              List of field names that were modified in this record.
-                              Null when hasChanged is false.
-                            items:
-                              type: string
-                            example: ["status", "scheduledTime"]
+                              The timestamp of the latest Question Bank version available on the server.
+                              The consumer MUST store this value and use it as the `lastSyncDate` parameter in the next request.
+                            example: "2024-02-26T12:00:00Z"
               examples:
-                recordChanged:
-                  summary: Record was modified — consumer should refresh
+                updateNeeded:
+                  summary: Update required
                   value:
                     success: true
-                    message: "The record has been modified since the last known state."
+                    message: "The question bank has been updated."
                     data:
-                      tableName: "appointments"
-                      recordId: "APT-2024-001"
-                      hasChanged: true
-                      lastModifiedAt: "2024-02-17T08:45:00Z"
-                      modifiedFields: ["status", "scheduledTime"]
-                recordUnchanged:
-                  summary: Record has not changed — no action needed
+                      updateRequired: true
+                      serverSyncDate: "2024-02-26T12:00:00Z"
+                noUpdateNeeded:
+                  summary: No update required
                   value:
                     success: true
-                    message: "No changes detected for this record."
+                    message: "The question bank is up to date."
                     data:
-                      tableName: "appointments"
-                      recordId: "APT-2024-001"
-                      hasChanged: false
-                      lastModifiedAt: "2024-02-16T07:00:00Z"
-                      modifiedFields: null
-                caleRecordChanged:
-                  summary: CALE record was modified
-                  value:
-                    success: true
-                    message: "The record has been modified since the last known state."
-                    data:
-                      tableName: "cales"
-                      recordId: "CALE-BOG-001"
-                      hasChanged: true
-                      lastModifiedAt: "2024-02-16T18:30:00Z"
-                      modifiedFields: ["caleName"]
+                      updateRequired: false
+                      serverSyncDate: "2024-02-26T12:00:00Z"
         '400':
-          description: Missing or invalid query parameters
+          description: Invalid parameters
           content:
             application/json:
               schema:
                 allOf:
                   - $ref: '#/components/schemas/ApiResponse'
               examples:
-                missingParams:
-                  summary: Required query parameters not provided
+                missingParam:
+                  summary: Missing lastSyncDate
                   value:
                     success: false
-                    message: "Both 'tableName' and 'recordId' query parameters are required."
-                    data:
-                      missingParams: ["recordId"]
-        '401':
-          description: Missing or invalid authentication token
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/ApiResponse'
-              examples:
-                unauthorized:
-                  summary: No valid token provided
-                  value:
-                    success: false
-                    message: "A valid Bearer token is required to access this resource."
+                    message: "The 'lastSyncDate' parameter is required."
                     data: {}
-        '404':
-          description: Record not found
+        '401':
+          description: Unauthorized
           content:
             application/json:
               schema:
                 allOf:
                   - $ref: '#/components/schemas/ApiResponse'
-              examples:
-                recordNotFound:
-                  summary: No record found for the given tableName + recordId
-                  value:
-                    success: false
-                    message: "No record was found in table 'appointments' with recordId: APT-9999"
-                    data:
-                      tableName: "appointments"
-                      recordId: "APT-9999"
         '500':
           description: Internal server error
           content:
@@ -1398,10 +1318,3 @@ paths:
               schema:
                 allOf:
                   - $ref: '#/components/schemas/ApiResponse'
-              examples:
-                internalError:
-                  summary: Unexpected server error
-                  value:
-                    success: false
-                    message: "An unexpected error occurred. Please try again later."
-                    data: {}

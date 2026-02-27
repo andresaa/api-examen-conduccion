@@ -82,9 +82,14 @@ server.get('/consultant-service/v1/health', (req, res) => {
 server.post('/consultant-service/v1/auth/login', (req, res) => {
   // Mock login - acepta cualquier credencial por ahora
   const token = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.mockToken123456';
-  const expiresIn = 86400; // 24 horas
+  
+  // Swagger espera accessToken y tokenType
+  const responseData = {
+    accessToken: token,
+    tokenType: 'Bearer'
+  };
 
-  sendSuccess(res, { accessToken: token, expiresIn }, 'Authentication successful');
+  sendSuccess(res, responseData, 'Authentication successful');
 });
 
 // ============================================================================
@@ -92,8 +97,10 @@ server.post('/consultant-service/v1/auth/login', (req, res) => {
 // ============================================================================
 server.get('/consultant-service/v1/cales', (req, res) => {
   const db = router.db;
-  const cales = db.get('cales').value();
-  sendSuccess(res, cales, 'CALE list retrieved successfully');
+  const calesList = db.get('cales').value();
+  
+  // Swagger espera data: { cales: [...] }
+  sendSuccess(res, { cales: calesList }, 'CALE list retrieved successfully');
 });
 
 // ============================================================================
@@ -112,11 +119,18 @@ server.get('/consultant-service/v1/appointment/:caleId', (req, res) => {
   // Obtener citas filtradas por caleId
   // Nota: En un sistema real esto filtraría por fecha actual también.
   // Aquí devolvemos todas las del mock para facilitar pruebas.
-  const appointments = db.get('appointments')
+  const appointmentsList = db.get('appointments')
     .filter({ caleId: caleId })
     .value();
 
-  sendSuccess(res, appointments, `Appointments for CALE ${caleId} retrieved successfully`);
+  // Estructura requerida por Swagger
+  const responseData = {
+    appointmentDate: new Date().toISOString().split('T')[0], // Fecha actual YYYY-MM-DD
+    totalApplicants: appointmentsList.length,
+    applicants: appointmentsList
+  };
+
+  sendSuccess(res, responseData, `Appointments for CALE ${caleId} retrieved successfully`);
 });
 
 // ============================================================================
@@ -132,7 +146,7 @@ server.get('/consultant-service/v1/resource-sync/status', (req, res) => {
 // ENDPOINT: SUBMIT TEST RESULT (WEBHOOK)
 // ============================================================================
 server.post('/consultant-service/v1/appointment/test-result', (req, res) => {
-  const { appointmentId, testType, result, userId, startPcMac, endPcMac, notes } = req.body;
+  const { appointmentId, testType, result, userId, startPcMac, endPcMac } = req.body;
   const db = router.db;
 
   // Validaciones básicas según Swagger
@@ -166,8 +180,9 @@ server.post('/consultant-service/v1/appointment/test-result', (req, res) => {
     appointmentId,
     userId,
     testType,
+    startPcMac,
+    endPcMac,
     result,
-    notes: notes || '',
     status: 'completed',
     createdAt: new Date().toISOString()
   };

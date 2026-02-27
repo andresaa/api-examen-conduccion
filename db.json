@@ -21,13 +21,15 @@
       "lastName": "Pérez García",
       "documentType": "CC",
       "documentNumber": "1234567890",
+      "email": "juan.perez@example.com",
       "appointmentId": "APT-2024-001",
+      "photoUrl": "https://i.pravatar.cc/150?img=1",
       "scheduledTime": "09:00",
       "testType": "TEORICO",
       "licenseCategory": "B1",
       "status": "confirmed",
-      "roomId": "ROOM-01",
-      "roomName": "Sala de Cómputo 1"
+      "roomId": "ROOM-BOG-001-A",
+      "roomName": "Sala A"
     },
     {
       "caleId": "CALE-BOG-001",
@@ -36,13 +38,15 @@
       "lastName": "López Rodríguez",
       "documentType": "CE",
       "documentNumber": "9876543210",
+      "email": "maria.lopez@example.com",
       "appointmentId": "APT-2024-002",
+      "photoUrl": null,
       "scheduledTime": "10:00",
       "testType": "TEORICO",
       "licenseCategory": "C1",
       "status": "confirmed",
-      "roomId": "ROOM-01",
-      "roomName": "Sala de Cómputo 1"
+      "roomId": "ROOM-BOG-001-A",
+      "roomName": "Sala A"
     },
     {
       "caleId": "CALE-BOG-002",
@@ -51,13 +55,15 @@
       "lastName": "González Martínez",
       "documentType": "CC",
       "documentNumber": "5555666677",
+      "email": "carlos.gonzalez@example.com",
       "appointmentId": "APT-2024-003",
+      "photoUrl": "https://i.pravatar.cc/150?img=3",
       "scheduledTime": "11:00",
-      "testType": "PRACTICO",
-      "licenseCategory": "A2",
-      "status": "confirmed",
-      "roomId": "TRACK-01",
-      "roomName": "Pista de Motos"
+      "testType": "TEORICO",
+      "licenseCategory": "C1",
+      "status": "pending",
+      "roomId": "ROOM-BOG-001-B",
+      "roomName": "Sala B"
     }
   ],
   "test_results": [
@@ -66,6 +72,8 @@
       "userId": "USR-001",
       "appointmentId": "APT-2024-001",
       "testType": "TEORICO",
+      "startPcMac": "A1B2C3D4E5F6",
+      "endPcMac": "A1B2C3D4E5F6",
       "result": {
         "startTime": "2024-02-26T09:00:00Z",
         "endTime": "2024-02-26T09:45:00Z",
@@ -77,9 +85,9 @@
           { "moduleName": "Vehículo", "totalQuestions": 6, "scorePercentage": 100, "minimumPassingScore": 80, "passed": true }
         ],
         "overallPassed": true,
-        "evidenceImagePaths": ["../APT-2024-001/USR-001/evidence/img-001.jpg"],
+        "evidenceImagePaths": ["./USR-001/APT-2024-001/evidence/img-001.jpg"],
         "auditLog": {
-          "auditLogPath": "../APT-2024-001/USR-001/evidence/audit-log.json",
+          "auditLogPath": "./USR-001/APT-2024-001/evidence/audit-log.json",
           "fraudInvalidated": false
         }
       },
